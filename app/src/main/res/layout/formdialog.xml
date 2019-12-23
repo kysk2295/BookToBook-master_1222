@@ -197,7 +197,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="location"
+                android:text="place"
                 android:textSize="14sp"
                 android:layout_marginLeft="4dp">
 
@@ -213,7 +213,7 @@
                 android:text="서울역"
                 android:id="@+id/textview_place"
                 android:textColor="#000000"
-                android:textSize="14sp"
+                android:textSize="10sp"
                 android:textStyle="bold"
                 android:layout_gravity="right|center_vertical"
                 android:layout_marginRight="15dp"/>

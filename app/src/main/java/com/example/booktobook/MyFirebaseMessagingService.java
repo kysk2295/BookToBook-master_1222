@@ -58,11 +58,11 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
         Intent intent = null;
         if (click_action.equals("CHAT_ACTIVITY")) {
             intent = new Intent(this, ChatActivity.class);
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
             Log.d("chat", "chat");
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
         } else if (click_action.equals("MESSAGE_ACTIVITY")) {
             intent = new Intent(this, MessageActivity.class);
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         }
 
         RemoteInput remoteInput = new RemoteInput.Builder(REPLY_KEY)
@@ -71,7 +71,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
 
         //Intent intent= new Intent(getApplicationContext(),MainActivity.class);
        // intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_ONE_SHOT);
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
         String channelId = "Channel ID";
         Uri defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
 

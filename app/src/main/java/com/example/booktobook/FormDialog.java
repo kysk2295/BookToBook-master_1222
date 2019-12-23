@@ -95,6 +95,7 @@ class FormDialog extends Dialog {
     public void setTimeText(String s){
         time.setText(s);
     }
+    public void setLocationText(String s){location.setText(s);}
 
     public void setDialogListner(CustomDialogListener customDialogListener){
         this.customDialogListener=customDialogListener;

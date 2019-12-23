@@ -4,4 +4,6 @@
     <string name="title_home">Home</string>
     <string name="title_dashboard">Dashboard</string>
     <string name="title_notifications">Notifications</string>
+    <bool name="auto_center_on_marker_click">true</bool>
+    <bool name="enable_nearby_search">true</bool>
 </resources>

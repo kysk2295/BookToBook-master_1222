@@ -1,8 +1,13 @@
 package com.example.booktobook;
 
+import android.app.AlarmManager;
+import android.app.PendingIntent;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -10,6 +15,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -18,10 +24,15 @@ import androidx.core.app.RemoteInput;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.gms.common.GooglePlayServicesNotAvailableException;
+import com.google.android.gms.common.GooglePlayServicesRepairableException;
+import com.google.android.gms.location.places.ui.PlacePicker;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
+import com.google.android.libraries.places.api.model.Place;
+import com.google.firebase.firestore.DocumentChange;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.EventListener;
@@ -30,7 +41,11 @@ import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.QuerySnapshot;
+import com.google.firebase.firestore.model.Document;
 import com.kunzisoft.switchdatetime.SwitchDateTimeDialogFragment;
+import com.rtchagas.pingplacepicker.PingPlacePicker;
+import com.shivtechs.maplocationpicker.LocationPickerActivity;
+import com.shivtechs.maplocationpicker.MapUtility;
 
 import org.json.JSONObject;
 
@@ -45,6 +60,7 @@ import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.TimeZone;
 
 public class MessageActivity extends AppCompatActivity {
@@ -69,6 +85,7 @@ public class MessageActivity extends AppCompatActivity {
     private SwitchDateTimeDialogFragment dateTimeFragment;
     private static final String TAG_DATETIME_FRAGMENT = "TAG_DATETIME_FRAGMENT";
     String a="";
+    private Calendar calendar= Calendar.getInstance();
 
 
     @Override
@@ -98,6 +115,7 @@ public class MessageActivity extends AppCompatActivity {
             }
         });
         dateFormatHour.setTimeZone(TimeZone.getTimeZone("Asia/Seoul"));
+        bookAlarm();
 
         sharedPreferences=getSharedPreferences("pref",MODE_PRIVATE);
         sender=sharedPreferences.getString("ID","");
@@ -144,7 +162,32 @@ public class MessageActivity extends AppCompatActivity {
 
                 formDialog.setDialogListner(new CustomDialogListener() {
                     @Override
-                    public void onPostiveClicked(String sender, String receiver, String time, String location, String alarm) {
+                    public void onPostiveClicked(String sender, String receiver, final String time, final String location, String alarm) {
+
+                        formDialog.dismiss();
+
+                        final Map<String,Object> map = new HashMap<>();
+                        map.put("sender",sender);
+                        map.put("receiver",receiver);
+                        map.put("time",time);
+                        map.put("location",location);
+                        map.put("room_id",chat.id);
+
+                        db.collection("meet")
+                                .add(map)
+                                .addOnCompleteListener(new OnCompleteListener<DocumentReference>() {
+                                    @Override
+                                    public void onComplete(@NonNull Task<DocumentReference> task) {
+                                        if (task.isSuccessful())
+                                        {
+                                            Toast.makeText(getApplicationContext(),time+"에"+"\n"+location+"에서 만납니다.",Toast.LENGTH_SHORT).show();
+                                        }
+                                        else
+                                        {
+                                            Toast.makeText(getApplicationContext(),"약속이 잡히지 않았습니다. -서버오류-",Toast.LENGTH_SHORT).show();
+                                        }
+                                    }
+                                });
 
                     }
 
@@ -164,8 +207,18 @@ public class MessageActivity extends AppCompatActivity {
                     @Override
                     public void onLocationClicked() {
 
-                        Intent i = new Intent(MessageActivity.this, GoogleMapActivity.class);
-                        startActivity(i);
+                        PingPlacePicker.IntentBuilder builder = new PingPlacePicker.IntentBuilder();
+                        builder.setAndroidApiKey("AIzaSyBmueYoyqNokkjvE2Ty926iWW0zOD-HeCA")
+                                .setMapsApiKey("AIzaSyCgPNZtuNI7WmmVThQvkRbRi4N4p_wADE8");
+
+                        try{
+                            Intent placeIntent=builder.build(MessageActivity.this);
+                            startActivityForResult(placeIntent,100);
+                        }catch (Exception e)
+                        {
+
+                        }
+
                     }
                 });
 
@@ -173,8 +226,6 @@ public class MessageActivity extends AppCompatActivity {
             }
         });
 
-
-        
         messageListAdapter= new MessageListAdapter(this,chats,sender);
         recyclerView.setAdapter(messageListAdapter);
         LinearLayoutManager linearLayoutManager= new LinearLayoutManager(this);
@@ -195,7 +246,93 @@ public class MessageActivity extends AppCompatActivity {
             }
         });
 
-        //documentReference=db.collection("")
+
+    }
+
+    private void bookAlarm() {
+
+        db.collection("meet")
+                .whereEqualTo("room_id",chat.id)
+                .addSnapshotListener(new EventListener<QuerySnapshot>() {
+                    @Override
+                    public void onEvent(@Nullable QuerySnapshot queryDocumentSnapshots, @Nullable FirebaseFirestoreException e) {
+
+                        Log.d("book", "test");
+                        if (e != null)
+                            return;
+                        for (DocumentChange dc : queryDocumentSnapshots.getDocumentChanges()) {
+                            switch (dc.getType()) {
+                                case ADDED:
+                                    setAlarm();
+                                    break;
+
+                            }
+                        }
+                    }
+
+                });
+    }
+
+    private void setAlarm() {
+            Intent mAlarmIntent = new Intent(getApplicationContext(),AlarmReceiver.class);
+            PendingIntent mPendingIntent= PendingIntent.getBroadcast(
+                    getApplicationContext(),0,mAlarmIntent,PendingIntent.FLAG_UPDATE_CURRENT
+            );
+            //PackageManager pm=getApplicationContext().getPackageManager();
+            //ComponentName receiver= new ComponentName(getApplicationContext(),DeviceBootReceiver.class);
+
+            AlarmManager alarmManager=(AlarmManager) getSystemService(Context.ALARM_SERVICE);
+            if (Build.VERSION.SDK_INT<Build.VERSION_CODES.M){
+                if (Build.VERSION.SDK_INT>=Build.VERSION_CODES.KITKAT){
+                    alarmManager.setExact(
+                            AlarmManager.RTC_WAKEUP,
+                            calendar.getTimeInMillis(),
+                            mPendingIntent
+                    );
+                }else{
+                    alarmManager.set(
+                            AlarmManager.RTC_WAKEUP,
+                            calendar.getTimeInMillis(),
+                            mPendingIntent
+                    );
+                }
+            }else{
+                alarmManager.setExactAndAllowWhileIdle(
+                        AlarmManager.RTC_WAKEUP,
+                        calendar.getTimeInMillis(),
+                        mPendingIntent
+                );
+            }
+
+
+            Log.d("cal", String.valueOf(calendar.getTime()));
+
+            SharedPreferences sharedPreferences=getSharedPreferences("pref",MODE_PRIVATE);
+            SharedPreferences.Editor editer=sharedPreferences.edit();
+            editer.putLong("long",calendar.getTimeInMillis());
+            editer.apply();
+            editer.commit();
+//
+//                        pm.setComponentEnabledSetting(receiver,
+//                                PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+//                                PackageManager.DONT_KILL_APP);
+
+
+        }
+
+
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        if (requestCode==100&&resultCode==RESULT_OK) {
+
+            Place place=PingPlacePicker.getPlace(data);
+            formDialog.setLocationText(place.getAddress());
+
+        }
+        else {
+            super.onActivityResult(requestCode, resultCode, data);
+        }
 
     }
 
@@ -230,7 +367,9 @@ public class MessageActivity extends AppCompatActivity {
         dateTimeFragment.setOnButtonClickListener(new SwitchDateTimeDialogFragment.OnButtonClickListener() {
             @Override
             public void onPositiveButtonClick(Date date) {
+                calendar.setTime(date);
                 a=myDateFormat.format(date);
+
                 formDialog.setTimeText(a);
                 dateTimeFragment.dismiss();
                 //Toast.makeText(getApplicationContext(),a,Toast.LENGTH_LONG).show();
@@ -262,6 +401,7 @@ public class MessageActivity extends AppCompatActivity {
         map.put("sent",System.currentTimeMillis());
         chat.timestamp=dateFormatHour.format(new Date());
         map.put("timestamp",chat.timestamp);
+
 
         db.collection("chat")
                 .add(map).addOnSuccessListener(new OnSuccessListener<DocumentReference>() {
@@ -374,21 +514,6 @@ public class MessageActivity extends AppCompatActivity {
         }
 
 
-//                if (task.isSuccessful()){
-//                    DocumentSnapshot document=task.getResult();
-//                    if (document.exists()){
-//                        Chat chat = new Chat();
-//                        chat.id=document.getString("room_id");
-//                        chat.message=document.getString("message");
-//                        chat.sender=document.getString("sender");
-//
-//                        chats.add(chat);
-//                    }else{
-//
-//                    }
-//                }
-//                recyclerView.setAdapter(new MessageListAdapter(mcontext,chats,sender));
-//                recyclerView.setLayoutManager(new LinearLayoutManager(getApplicationContext()));
 
 
             }
