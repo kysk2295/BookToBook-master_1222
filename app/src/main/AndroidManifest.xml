@@ -50,7 +50,8 @@
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyBmueYoyqNokkjvE2Ty926iWW0zOD-HeCA" />
 
-
+        <meta-data android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="@string/default_notification_channel_id"/>
         <service
             android:name=".MyFirebaseMessagingService"
             android:stopWithTask="false">

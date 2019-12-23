@@ -46,6 +46,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
             String title = remoteMessage.getNotification().getTitle();
             String body = remoteMessage.getNotification().getBody();
             String click_action = remoteMessage.getData().get("click_action");
+            Log.d("####", "onMessageReceived: "+click_action);
             sendNotification(remoteMessage, title, body, click_action);
         }
 
@@ -54,6 +55,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
 
 
     private void sendNotification(RemoteMessage remoteMessage, String title, String body, String click_action) {
+
 
         Intent intent = null;
         if (click_action.equals("CHAT_ACTIVITY")) {
